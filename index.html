@@ -219,7 +219,11 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;
       <button class="act kill" onclick="act('${l.id}','killed')">Kill</button></div>`;
   showSheet(true);
 }
-function showSheet(s){$('sheet').classList.toggle('show',s);$('scrim').classList.toggle('show',s);if(!s){$('sheet').dataset.tip='';}}
+let _pushed=false,_bypop=false;
+function showSheet(s){$('sheet').classList.toggle('show',s);$('scrim').classList.toggle('show',s);if(!s){$('sheet').dataset.tip='';}
+  if(s){if(!_pushed){history.pushState({m:1},'');_pushed=true;}}
+  else{if(_pushed&&!_bypop){_bypop=true;history.back();}}}
+window.addEventListener('popstate',()=>{_pushed=false;if(_bypop){_bypop=false;return;}if($('sheet').classList.contains('show'))showSheet(false);});
 async function act(id,s){const l=LEADS.find(x=>x.id===id);if(l)l.status=s;
   if(MODE==='live'&&sb){const{error}=await sb.rpc('lead_action',{p_lead_id:id,p_status:s});toast(error?'Save failed':(s==='approved'?'Approved':'Killed'));}
   else{ov[id]=s;localStorage.setItem('legacy_overrides',JSON.stringify(ov));toast(s==='approved'?'Approved (demo)':'Killed (demo)');}
