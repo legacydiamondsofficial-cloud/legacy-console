@@ -41,6 +41,19 @@
   .nt{font-weight:600;font-size:15px}
   .nbody{color:var(--s);font-size:13px;margin-top:2px;word-break:break-word}
   .ntime{color:var(--mut);font-size:12px;margin-top:3px}
+  .setsec{padding:20px 0;border-bottom:1px solid var(--line)}
+  .seth{font:700 11px/1 sans-serif;letter-spacing:.13em;color:var(--mut);text-transform:uppercase;margin-bottom:14px}
+  .bigbtn{width:100%;padding:16px;border-radius:14px;border:0;background:var(--gold);color:#fff;font-size:16px;font-weight:700}
+  .bigbtn:active{opacity:.85}
+  .sethint{color:var(--mut);font-size:13px;margin-top:10px;line-height:1.45}
+  .setrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .setlbl{font-size:16px;font-weight:600}
+  .switch{position:relative;display:inline-block;width:52px;height:30px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:30px;transition:.2s;cursor:pointer}
+  .switch .track:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .switch input:checked + .track{background:var(--send)}
+  .switch input:checked + .track:before{transform:translateX(22px)}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Georgia,serif}
   .signout{font-size:12px;color:var(--mut);border:1px solid var(--line);padding:7px 11px;border-radius:9px;background:var(--card)}
   h1{font-family:Georgia,serif;font-weight:400;font-size:27px;margin:14px 0 2px;letter-spacing:-.01em}
@@ -147,6 +160,7 @@
       <div class="wm">Leg<b>a</b>cy</div>
       <span class="mode demo" id="mode">…</span>
       <button class="bell" id="bell" style="display:none">🔔<span class="badge" id="badge"></span></button>
+      <button class="bell" id="gear" style="display:none">⚙</button>
       <span class="whoami" id="whoami"></span>
       <button class="signout" id="signout" style="display:none">Sign out</button>
     </div>
@@ -299,7 +313,7 @@ let NOTIFS=[], _notifSub=false;
 const NI={approved:'✓',killed:'✕',tip:'＋',sent:'✈',edited:'✎',system:'★'};
 function rel(ts){const s=(Date.now()-new Date(ts).getTime())/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function renderBadge(){const seen=+(localStorage.getItem('notif_seen')||0);const n=NOTIFS.filter(x=>new Date(x.created_at).getTime()>seen).length;const b=$('badge');if(n>0){b.textContent=n>9?'9+':n;b.classList.add('show');}else b.classList.remove('show');}
-async function loadNotifs(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);NOTIFS=data||[];$('bell').style.display='flex';renderBadge();}
+async function loadNotifs(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);NOTIFS=data||[];$('bell').style.display='flex';$('gear').style.display='flex';renderBadge();}
 function subscribeNotifs(){if(_notifSub||!sb)return;_notifSub=true;try{sb.channel('notif').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},p=>{if(!NOTIFS.find(x=>x.id===p.new.id)){NOTIFS.unshift(p.new);renderBadge();toast('🔔 '+p.new.title);}}).subscribe();}catch(e){}}
 function openNotifs(){
   $('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Notifications</div></div><div style="width:42px"></div></div>`;
@@ -308,12 +322,31 @@ function openNotifs(){
   localStorage.setItem('notif_seen',Date.now());renderBadge();showSheet(true);
 }
 $('bell').onclick=openNotifs;
+
+// ---- settings: harvest now + auto-harvest toggle ----
+async function harvestNow(){if(MODE!=='live'||!sb){toast('Log in to harvest');return;}const{error}=await sb.rpc('trigger_harvest');toast(error?'Harvest failed':'Harvest started — results in a few minutes');if(!error){loadNotifs();showSheet(false);}}
+async function setAuto(on){if(!sb)return;await sb.rpc('set_auto_harvest',{p_on:on});toast('Auto-harvest '+(on?'on':'off'));loadNotifs();}
+async function openSettings(){
+  let auto=true; try{const{data}=await sb.from('settings').select('enabled').eq('key','auto_harvest').maybeSingle();if(data)auto=data.enabled;}catch(e){}
+  $('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Settings</div></div><div style="width:42px"></div></div>`;
+  $('sheetfoot').innerHTML='';
+  $('sbody').innerHTML=`
+    <div class="setsec"><div class="seth">Harvest</div>
+      <button class="bigbtn" onclick="harvestNow()">↻  Harvest now</button>
+      <div class="sethint">Pull fresh leads from every source right now. Takes a few minutes — you'll get a notification when it's done.</div></div>
+    <div class="setsec"><div class="setrow">
+      <div><div class="setlbl">Auto-harvest each morning</div><div class="sethint" style="margin-top:4px">Robot refreshes your queue nightly. Turn off anytime — the button still works.</div></div>
+      <label class="switch"><input type="checkbox" id="autotog" ${auto?'checked':''} onchange="setAuto(this.checked)"><span class="track"></span></label>
+    </div></div>`;
+  showSheet(true);
+}
+$('gear').onclick=openSettings;
 $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();};
 
 function nameFrom(u){return (u&&u.user_metadata&&(u.user_metadata.full_name||u.user_metadata.name))||((u&&u.email||'').split('@')[0].split('+')[0].split('.')[0].replace(/^./,c=>c.toUpperCase()))||'You';}
 async function showWho(){try{const{data:{user}}=await sb.auth.getUser();if(user){const nm=nameFrom(user);const w=$('whoami');w.innerHTML='<span class="avatar">'+((nm[0]||'•').toUpperCase())+'</span>'+nm;w.style.display='flex';}}catch(e){}}
 async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();loadNotifs();subscribeNotifs();}
-async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
+async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';$('gear').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
 $('li-go').onclick=async()=>{const e=$('li-email').value.trim(),p=$('li-pw').value;$('li-err').textContent='';
   if(!sb){$('li-err').textContent='Offline — try again on the live link.';return;}
   $('li-go').textContent='…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});$('li-go').textContent='Enter';
