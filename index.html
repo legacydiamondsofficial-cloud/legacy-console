@@ -54,6 +54,23 @@
   .switch .track:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
   .switch input:checked + .track{background:var(--send)}
   .switch input:checked + .track:before{transform:translateX(22px)}
+  .hbanner{display:none;align-items:center;gap:10px;margin:10px 16px 0;padding:12px 14px;border-radius:12px;background:var(--gold-soft);color:#7a5f1f;font-size:14px;font-weight:600}
+  .hbanner.show{display:flex} .hbanner.done{background:#eef7f1;color:var(--send)}
+  .spin{width:14px;height:14px;border:2px solid #d9c48c;border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .qsort{display:flex;gap:8px;padding:10px 16px 0}
+  .qseg{font-size:13px;font-weight:600;color:var(--ink2);padding:7px 16px;border-radius:18px;border:1px solid var(--line);background:var(--card)}
+  .qseg.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .datehdr{font:700 12px/1 -apple-system,sans-serif;letter-spacing:.06em;color:var(--mut);text-transform:uppercase;padding:20px 4px 4px}
+  .cardtime{font-size:12px;color:var(--mut);margin-top:5px}
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:36;max-width:640px;margin:0 auto;display:flex;background:rgba(246,243,238,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
+  .tab{flex:1;background:none;border:0;padding:11px 0;font-size:11px;font-weight:600;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px}
+  .tab .ic{font-size:19px;line-height:1} .tab.on{color:var(--gold)}
+  .tip-row{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0;box-shadow:var(--sh)}
+  .tip-row .tu{flex:1;min-width:0} .turl{font-size:14px;font-weight:600;word-break:break-all} .tmeta{font-size:12px;color:var(--mut);margin-top:4px}
+  .tst{flex:none;font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;background:#f3f0ea;color:var(--ink2)}
+  .tst.resolved{background:#eef7f1;color:var(--send)} .tst.new{background:var(--gold-soft);color:var(--gold)} .tst.failed,.tst.rejected{background:#fbeeec;color:var(--kill)}
+  .addtip{width:100%;padding:14px;border-radius:14px;border:1px dashed var(--gold);background:var(--gold-soft);color:var(--gold);font-size:15px;font-weight:700;margin:6px 0 4px}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Georgia,serif}
   .signout{font-size:12px;color:var(--mut);border:1px solid var(--line);padding:7px 11px;border-radius:9px;background:var(--card)}
   h1{font-family:Georgia,serif;font-weight:400;font-size:27px;margin:14px 0 2px;letter-spacing:-.01em}
@@ -167,8 +184,9 @@
     <h1 class="serif">The Morning Queue</h1>
     <div class="count"><b id="c-total">–</b> in queue · <b class="s" id="c-send">–</b> sendable · <b id="c-appr">–</b> approved</div>
   </header>
-  <div class="tools"><input class="search" id="q" placeholder="Search name, company, sector"/></div>
-  <div class="pillwrap">
+  <div class="hbanner" id="hbanner"></div>
+  <div class="tools" id="tools"><input class="search" id="q" placeholder="Search name, company, sector"/></div>
+  <div class="pillwrap" id="pillwrap">
     <div class="pills" id="pills">
       <span class="pill on" data-f="all">All</span>
       <span class="pill" data-f="sendable">Sendable</span>
@@ -179,10 +197,13 @@
     </div>
     <div class="pillfade" id="pillfade"></div>
   </div>
+  <div class="qsort" id="qsort"><span class="qseg on" data-s="top">Top</span><span class="qseg" data-s="recent">Recent</span></div>
   <div class="list" id="list"></div>
+  <nav class="tabbar">
+    <button class="tab on" data-tab="queue"><span class="ic">📋</span>Queue</button>
+    <button class="tab" data-tab="tips"><span class="ic">🔗</span>Tips</button>
+  </nav>
 </div>
-
-<button class="fab" id="fab" title="Add tip">＋</button>
 <div class="toast" id="toast"></div>
 
 <div class="scrim" id="scrim"></div>
@@ -210,7 +231,7 @@
 const SB_URL='https://datmpoiomjaegwfmssja.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhdG1wb2lvbWphZWd3Zm1zc2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NzUwMzksImV4cCI6MjA5NjU1MTAzOX0.QRYfiEHePtAiM9iocdJUp3fpE7XSdx5KiTe4X68EpJE';
 let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_ANON); }catch(e){}
-let LEADS=[], VIEW=[], filter='all', q='', selId=null, MODE='demo';
+let LEADS=[], VIEW=[], filter='all', q='', selId=null, MODE='demo', tab='queue', qsort='top', TIPS=[];
 const ov=JSON.parse(localStorage.getItem('legacy_overrides')||'{}');
 const $=id=>document.getElementById(id);
 const fmtUSD=n=>n==null?null:'$'+(Math.abs(n)>=1e9?(n/1e9).toFixed(1)+'B':Math.abs(n)>=1e6?(n/1e6).toFixed(1)+'M':(n/1e3).toFixed(0)+'k');
@@ -222,7 +243,20 @@ function status(l){return MODE==='demo'?(ov[l.id]||l.status):l.status;}
 function sendable(l){return ((l.contact_paths||{}).verification||{}).sendable===true;}
 function setMode(m){MODE=m;const e=$('mode');e.textContent=m==='live'?'● LIVE':'DEMO';e.className='mode '+m;$('signout').style.display=m==='live'?'inline-block':'none';}
 
-function render(){
+function dayLabel(ts){if(!ts)return 'Earlier';const d=new Date(ts),n=new Date();const a=new Date(d.getFullYear(),d.getMonth(),d.getDate()),b=new Date(n.getFullYear(),n.getMonth(),n.getDate());const diff=Math.round((b-a)/86400000);if(diff<=0)return 'Today';if(diff===1)return 'Yesterday';return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});}
+function hhmm(ts){return ts?new Date(ts).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';}
+function leadCard(l){const st=status(l),ex=l.extraction||{};
+  const company=ex.company||(l.tags&&l.tags.includes('fec-donor')?(ex.employer||''):'');
+  const c=document.createElement('div');c.className='card';c.onclick=()=>open(l.id);
+  c.innerHTML=`<div class="strike"><b>${l.strike_score}</b><small>STRIKE</small></div>
+    <div class="who"><div class="nm"><span class="dot ${st}"></span>${esc(l.display_name||l.full_name)}</div>
+    <div class="meta">${esc([l.sector,company,[l.city,l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
+    <div class="tags"><span class="t world">${world(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}<span class="t">${source(l)}</span></div>
+    <div class="cardtime">${dayLabel(l.created_at)} · ${hhmm(l.created_at)}</div></div>
+    <div class="chev">›</div>`;
+  return c;}
+function render(){ if(tab==='tips') return renderTips(); renderQueue(); }
+function renderQueue(){
   const el=$('list');el.innerHTML='';
   let rows=LEADS.filter(l=>{const st=status(l);
     if(filter==='queued'&&st!=='queued')return false;
@@ -232,21 +266,29 @@ function render(){
     if(filter==='affinity'&&(l.score_breakdown||{}).lane!=='affinity')return false;
     if(q&&!((l.display_name+' '+((l.extraction||{}).company||'')+' '+l.sector).toLowerCase().includes(q)))return false;
     return true;});
+  rows=rows.slice().sort(qsort==='recent'?(a,b)=>new Date(b.created_at)-new Date(a.created_at):(a,b)=>b.strike_score-a.strike_score);
   VIEW=rows;
   $('c-total').textContent=LEADS.filter(l=>status(l)==='queued').length;
   $('c-send').textContent=LEADS.filter(l=>sendable(l)).length;
   $('c-appr').textContent=LEADS.filter(l=>status(l)==='approved').length;
   if(!rows.length){el.innerHTML='<div class="empty">'+(MODE==='demo'?'Sign in to load your live queue.':'No leads match.')+'</div>';return;}
-  rows.forEach(l=>{const b=l.score_breakdown||{},st=status(l),ex=l.extraction||{};
-    const company=ex.company||(l.tags&&l.tags.includes('fec-donor')?(ex.employer||''):'');
-    const c=document.createElement('div');c.className='card';c.onclick=()=>open(l.id);
-    c.innerHTML=`<div class="strike"><b>${l.strike_score}</b><small>STRIKE</small></div>
-      <div class="who"><div class="nm"><span class="dot ${st}"></span>${esc(l.display_name||l.full_name)}</div>
-      <div class="meta">${esc([l.sector,company,[l.city,l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
-      <div class="tags"><span class="t world">${world(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}<span class="t">${source(l)}</span></div></div>
-      <div class="chev">›</div>`;
-    el.appendChild(c);});
+  if(qsort==='recent'){let cur=null;rows.forEach(l=>{const d=dayLabel(l.created_at);if(d!==cur){cur=d;const h=document.createElement('div');h.className='datehdr';h.textContent=d;el.appendChild(h);}el.appendChild(leadCard(l));});}
+  else rows.forEach(l=>el.appendChild(leadCard(l)));
 }
+const TST={new:'Posted',resolving:'Processing',resolved:'Resolved',rejected:'Skipped',failed:'Couldn’t resolve'};
+async function loadTips(){if(MODE!=='live'||!sb){TIPS=[];return;}const{data}=await sb.from('my_tips').select('*').order('created_at',{ascending:false});TIPS=data||[];}
+async function renderTips(){
+  const el=$('list');el.innerHTML='<button class="addtip" onclick="openTip()">＋  Add a tip</button>';
+  await loadTips();
+  if(!TIPS.length){el.insertAdjacentHTML('beforeend','<div class="empty">No tips yet. Paste any public URL — a profile, article, or filing — and the engine resolves it into a lead.</div>');return;}
+  let cur=null,html='';
+  TIPS.forEach(t=>{const d=dayLabel(t.created_at);if(d!==cur){cur=d;html+=`<div class="datehdr">${d}</div>`;}
+    html+=`<div class="tip-row"><div class="tu"><div class="turl">${esc(t.url)}</div><div class="tmeta">${hhmm(t.created_at)}${t.error?' · '+esc(t.error):''}</div></div><span class="tst ${esc(t.status)}">${TST[t.status]||esc(t.status)}</span></div>`;});
+  el.insertAdjacentHTML('beforeend',html);
+}
+function switchTab(t){tab=t;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===t));
+  const isQ=(t==='queue');['tools','pillwrap','qsort'].forEach(id=>{const e=$(id);if(e)e.style.display=isQ?'':'none';});
+  window.scrollTo(0,0);render();}
 function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const idx=VIEW.findIndex(x=>x.id===id);
   const b=l.score_breakdown||{},ex=l.extraction||{},cp=l.contact_paths||{},v=cp.verification||{};
   const comps=b.lane==='event'?[['wealth',b.wealth],['occasion',b.occasion],['propensity',b.propensity],['timing',b.timing]]:[['wealth',b.wealth],['affinity',b.affinity],['reachability',b.reachability],['recency',b.recency]];
@@ -300,7 +342,17 @@ $('pills').querySelectorAll('.pill').forEach(p=>p.onclick=()=>{$('pills').queryS
 $('pills').addEventListener('scroll',_pillFade);setTimeout(_pillFade,300);
 $('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 $('scrim').onclick=()=>showSheet(false);
-$('fab').onclick=openTip;
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+$('qsort').querySelectorAll('.qseg').forEach(s=>s.onclick=()=>{$('qsort').querySelectorAll('.qseg').forEach(x=>x.classList.remove('on'));s.classList.add('on');qsort=s.dataset.s;render();});
+// ---- live harvest timer ----
+let _hv=null;
+async function loadHarvest(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('harvest_runs').select('*').order('started_at',{ascending:false}).limit(1);_hv=(data&&data[0])||null;updateBanner();}
+function updateBanner(){const b=$('hbanner');if(!b)return;if(!_hv){b.className='hbanner';return;}
+  if(_hv.status==='running'){const s=Math.max(0,Math.floor((Date.now()-new Date(_hv.started_at))/1000));b.className='hbanner show';b.innerHTML=`<span class="spin"></span> Harvesting… ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+  else if(_hv.finished_at&&(Date.now()-new Date(_hv.finished_at))<90000){const dur=Math.round((new Date(_hv.finished_at)-new Date(_hv.started_at))/1000);b.className='hbanner show done';b.innerHTML=`✓ Harvest complete · ${_hv.new_leads||0} new · ${dur}s`;}
+  else b.className='hbanner';}
+setInterval(updateBanner,1000);
+setInterval(()=>{if(MODE==='live')loadHarvest();},7000);
 function nav(d){if(!$('sheet').classList.contains('show'))return;const i=VIEW.findIndex(x=>x.id===selId);if(i<0)return;const n=i+d;if(n<0||n>=VIEW.length)return;open(VIEW[n].id);$('sbody').scrollTop=0;}
 let _sx=0,_sy=0;
 $('sheet').addEventListener('touchstart',e=>{const t=e.changedTouches[0];_sx=t.clientX;_sy=t.clientY;},{passive:true});
@@ -314,7 +366,10 @@ const NI={approved:'✓',killed:'✕',tip:'＋',sent:'✈',edited:'✎',system:'
 function rel(ts){const s=(Date.now()-new Date(ts).getTime())/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function renderBadge(){const seen=+(localStorage.getItem('notif_seen')||0);const n=NOTIFS.filter(x=>new Date(x.created_at).getTime()>seen).length;const b=$('badge');if(n>0){b.textContent=n>9?'9+':n;b.classList.add('show');}else b.classList.remove('show');}
 async function loadNotifs(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);NOTIFS=data||[];$('bell').style.display='flex';$('gear').style.display='flex';renderBadge();}
-function subscribeNotifs(){if(_notifSub||!sb)return;_notifSub=true;try{sb.channel('notif').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},p=>{if(!NOTIFS.find(x=>x.id===p.new.id)){NOTIFS.unshift(p.new);renderBadge();toast('🔔 '+p.new.title);}}).subscribe();}catch(e){}}
+function subscribeNotifs(){if(_notifSub||!sb)return;_notifSub=true;try{sb.channel('rt')
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},p=>{if(!NOTIFS.find(x=>x.id===p.new.id)){NOTIFS.unshift(p.new);renderBadge();toast('🔔 '+p.new.title);}})
+  .on('postgres_changes',{event:'*',schema:'public',table:'harvest_runs'},()=>loadHarvest())
+  .subscribe();}catch(e){}}
 function openNotifs(){
   $('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Notifications</div></div><div style="width:42px"></div></div>`;
   $('sheetfoot').innerHTML='';
@@ -345,7 +400,7 @@ $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();}
 
 function nameFrom(u){return (u&&u.user_metadata&&(u.user_metadata.full_name||u.user_metadata.name))||((u&&u.email||'').split('@')[0].split('+')[0].split('.')[0].replace(/^./,c=>c.toUpperCase()))||'You';}
 async function showWho(){try{const{data:{user}}=await sb.auth.getUser();if(user){const nm=nameFrom(user);const w=$('whoami');w.innerHTML='<span class="avatar">'+((nm[0]||'•').toUpperCase())+'</span>'+nm;w.style.display='flex';}}catch(e){}}
-async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();loadNotifs();subscribeNotifs();}
+async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();loadNotifs();subscribeNotifs();loadHarvest();}
 async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';$('gear').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
 $('li-go').onclick=async()=>{const e=$('li-email').value.trim(),p=$('li-pw').value;$('li-err').textContent='';
   if(!sb){$('li-err').textContent='Offline — try again on the live link.';return;}
