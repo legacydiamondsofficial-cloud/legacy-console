@@ -71,6 +71,17 @@
   .tst{flex:none;font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;background:#f3f0ea;color:var(--ink2)}
   .tst.resolved{background:#eef7f1;color:var(--send)} .tst.new{background:var(--gold-soft);color:var(--gold)} .tst.failed,.tst.rejected{background:#fbeeec;color:var(--kill)}
   .addtip{width:100%;padding:14px;border-radius:14px;border:1px dashed var(--gold);background:var(--gold-soft);color:var(--gold);font-size:15px;font-weight:700;margin:6px 0 4px}
+  .sbody, .sbody *{-webkit-user-select:text;user-select:text}
+  .rrow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid #f1ece2}
+  .rrow:last-child{border:0}
+  .rbadge{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:#f1ece2;color:var(--ink2)}
+  .rbadge.email{background:#eef3fb;color:#3a6fb0} .rbadge.phone{background:#eef7f1;color:var(--send)}
+  .rbadge.linkedin{background:#e8f1fa;color:#0a66c2} .rbadge.instagram{background:#fdeef3;color:#c13584}
+  .rbadge.x{background:#eceae6;color:#111} .rbadge.website{background:var(--gold-soft);color:var(--gold)}
+  .rval{flex:1;min-width:0;font-size:14px;color:var(--ink);text-decoration:none;word-break:break-all}
+  a.rval{color:#2a6fb0}
+  .rcopy{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink2);font-size:12px;font-weight:600;padding:7px 11px;border-radius:9px}
+  .notif{cursor:pointer}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Georgia,serif}
   .signout{font-size:12px;color:var(--mut);border:1px solid var(--line);padding:7px 11px;border-radius:9px;background:var(--card)}
   h1{font-family:Georgia,serif;font-weight:400;font-size:27px;margin:14px 0 2px;letter-spacing:-.01em}
@@ -240,6 +251,25 @@ const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&g
 function world(l){const w=(l.extraction&&(l.extraction.holdings_usd||l.extraction.fec_total_usd))||0;if(l.strike_score>=72||w>=5e8)return 'Circle';if(l.strike_score>=55)return 'Icon';return 'Era';}
 function source(l){const c=l.category||'',b=l.score_breakdown||{};if(b.source==='fec'||c==='political_donation')return 'FEC';if(c==='institutional_sale')return 'EDGAR institutional';if(c==='insider_sale')return 'SEC EDGAR';if(c==='wealth_signal')return 'Wealth signal';return c?tc(c):'—';}
 function status(l){return MODE==='demo'?(ov[l.id]||l.status):l.status;}
+const RICON={email:'✉',phone:'☎',x:'X',linkedin:'in',instagram:'IG',website:'🌐',note:'·'};
+function hrefFor(k,v){switch(k){case 'email':return 'mailto:'+v;case 'phone':return 'tel:'+v.replace(/[^\d+]/g,'');case 'x':return 'https://x.com/'+v.replace(/^@/,'');case 'instagram':return v.startsWith('http')?v:'https://instagram.com/'+v.replace(/^@/,'');case 'linkedin':return v.startsWith('http')?v:'https://www.linkedin.com/in/'+v.replace(/^@/,'');case 'website':return v.startsWith('http')?v:'https://'+v;default:return null;}}
+function reachItems(l){const cp=l.contact_paths||{},out=[];
+  (cp.channels||[]).forEach(c=>{const v=(c.value||'').trim();if(!v)return;const t=(c.type||'').toLowerCase();let k='note';
+    if(t==='x'||t==='twitter')k='x';else if(t==='linkedin')k='linkedin';else if(t==='instagram')k='instagram';else if(t==='website')k='website';
+    else if(t==='phone'||/^\+?[\d][\d\s().-]{6,}\d$/.test(v))k='phone';
+    else if(v.includes('@')&&v.includes('.')&&!v.includes(' '))k='email';
+    out.push({k,v});});
+  const pr=l.profiles||{};['linkedin','instagram','x','twitter','website','phone','email'].forEach(key=>{if(pr[key])out.push({k:(key==='twitter'?'x':key),v:String(pr[key])});});
+  return out;}
+function reachHTML(l){const items=reachItems(l);if(!items.length)return '<div class="dd" style="color:var(--mut)">No links resolved yet — enrichment fills these in.</div>';
+  return items.map(it=>{const h=hrefFor(it.k,it.v);const val=h?`<a class="rval" href="${h}" target="_blank" rel="noopener">${esc(it.v)}</a>`:`<span class="rval">${esc(it.v)}</span>`;
+    return `<div class="rrow"><span class="rbadge ${it.k}">${RICON[it.k]||'·'}</span>${val}<button class="rcopy" data-c="${esc(it.v).replace(/"/g,'&quot;')}" onclick="copyText(this.dataset.c)">Copy</button></div>`;}).join('');}
+function copyText(t){try{navigator.clipboard.writeText(t);}catch(e){}toast('Copied');}
+function handleNotif(id){const n=NOTIFS.find(x=>x.id===id);if(!n)return;
+  if(n.ref_id){const l=LEADS.find(x=>x.id===n.ref_id);if(l){open(n.ref_id);return;}showSheet(false);switchTab('queue');toast('Lead not in current view');return;}
+  if(n.kind==='harvest'){showSheet(false);switchTab('queue');return;}
+  if(n.kind==='tip'){showSheet(false);switchTab('tips');return;}
+  showSheet(false);}
 function sendable(l){return ((l.contact_paths||{}).verification||{}).sendable===true;}
 function setMode(m){MODE=m;const e=$('mode');e.textContent=m==='live'?'● LIVE':'DEMO';e.className='mode '+m;$('signout').style.display=m==='live'?'inline-block':'none';}
 
@@ -293,7 +323,7 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
   const b=l.score_breakdown||{},ex=l.extraction||{},cp=l.contact_paths||{},v=cp.verification||{};
   const comps=b.lane==='event'?[['wealth',b.wealth],['occasion',b.occasion],['propensity',b.propensity],['timing',b.timing]]:[['wealth',b.wealth],['affinity',b.affinity],['reachability',b.reachability],['recency',b.recency]];
   const take=ex.personal_take_usd||ex.fec_total_usd,hold=ex.holdings_usd,st=status(l);
-  const doors=(cp.channels||[]).map(c=>`<div class="door">${esc(c.value)}<div class="dd">${esc((c.status||'').toUpperCase())} · ${esc(c.note||c.type)}</div></div>`).join('')||'<div class="dd" style="color:var(--mut)">No doors resolved yet.</div>';
+  const reach=reachHTML(l);
   $('sheethead').innerHTML = `<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">${idx>=0?(idx+1)+' of '+VIEW.length+' · swipe':''}</div><div class="tc-name"><span class="tc-tier">${world(l)}</span>${esc(l.display_name||l.full_name)}</div></div><div class="tnav"><span class="${idx>0?'':'off'}" onclick="nav(-1)">‹</span><span class="${idx<VIEW.length-1?'':'off'}" onclick="nav(1)">›</span></div></div>`;
   $('sbody').innerHTML=`
     <div class="world-tag">The Legacy ${world(l)}</div>
@@ -307,8 +337,11 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
       ${hold?`<div class="kv"><span>Holdings</span>${fmtUSD(hold)}</div>`:''}
       <div class="kv"><span>Detected</span>${(l.detected_at||'').slice(0,10)||'—'}</div></div></div>
     <div class="sec"><h4>Suggested angle</h4><div class="kv"><span>Segment</span>${tc(l.segment||'—')}</div><div class="kv"><span>Angle</span>${esc(l.pitch_angle||'—')}</div></div>
-    <div class="sec"><h4>Contact doors ${sendable(l)?'· <span style="color:var(--send)">sendable</span>':'· <span style="color:var(--mut)">not yet</span>'}</h4>
-      ${doors}${v.note?`<div class="dd" style="margin-top:8px;color:var(--mut)">${esc(v.note)}</div>`:''}</div>`;
+    <div class="sec"><h4>Reach ${sendable(l)?'· <span style="color:var(--send)">sendable</span>':'· <span style="color:var(--mut)">not yet</span>'}</h4>
+      ${reach}${v.note?`<div class="dd" style="margin-top:10px;color:var(--mut)">${esc(v.note)}</div>`:''}</div>
+    <div class="sec"><h4>Source &amp; recent</h4>
+      ${l.url?`<div class="rrow"><span class="rbadge website">🌐</span><a class="rval" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.url)}</a></div>`:'<div class="dd" style="color:var(--mut)">No source link yet.</div>'}
+      <div class="dd" style="margin-top:8px;color:var(--mut)">Recent news &amp; mentions populate here once the news enrichment runs.</div></div>`;
   $('sheetfoot').innerHTML=`<div class="actions">
       <button class="act appr" onclick="act('${l.id}','approved')">${st==='approved'?'✓ Approved':'Approve'}</button>
       <button class="act" onclick="toast('Feature-invite draft queued')">Draft invite</button>
@@ -373,7 +406,7 @@ function subscribeNotifs(){if(_notifSub||!sb)return;_notifSub=true;try{sb.channe
 function openNotifs(){
   $('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Notifications</div></div><div style="width:42px"></div></div>`;
   $('sheetfoot').innerHTML='';
-  $('sbody').innerHTML=NOTIFS.length?NOTIFS.map(n=>`<div class="notif"><div class="ni ${esc(n.kind)}">${NI[n.kind]||'•'}</div><div class="nb"><div class="nt">${esc(n.title)}</div>${n.body?`<div class="nbody">${esc(n.body)}</div>`:''}<div class="ntime">${rel(n.created_at)}</div></div></div>`).join(''):'<div class="empty">No activity yet.</div>';
+  $('sbody').innerHTML=NOTIFS.length?NOTIFS.map(n=>`<div class="notif" onclick="handleNotif('${n.id}')"><div class="ni ${esc(n.kind)}">${NI[n.kind]||'•'}</div><div class="nb"><div class="nt">${esc(n.title)}</div>${n.body?`<div class="nbody">${esc(n.body)}</div>`:''}<div class="ntime">${rel(n.created_at)}${n.ref_id?' · tap to open':''}</div></div></div>`).join(''):'<div class="empty">No activity yet.</div>';
   localStorage.setItem('notif_seen',Date.now());renderBadge();showSheet(true);
 }
 $('bell').onclick=openNotifs;
