@@ -40,6 +40,8 @@
   .search::placeholder{color:var(--mut)}
   .pills{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .pills::-webkit-scrollbar{display:none}
+  .pillwrap{position:relative}
+  .pillfade{position:absolute;top:0;right:0;width:42px;height:100%;pointer-events:none;background:linear-gradient(90deg,rgba(246,243,238,0),var(--bg) 72%);transition:opacity .2s}
   .pill{flex:none;background:var(--card);border:1px solid var(--line);color:var(--ink2);padding:9px 16px;border-radius:22px;font-size:14px;font-weight:500}
   .pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   /* list */
@@ -121,13 +123,16 @@
     <div class="count"><b id="c-total">–</b> in queue · <b class="s" id="c-send">–</b> sendable · <b id="c-appr">–</b> approved</div>
   </header>
   <div class="tools"><input class="search" id="q" placeholder="Search name, company, sector"/></div>
-  <div class="pills" id="pills">
-    <span class="pill on" data-f="all">All</span>
-    <span class="pill" data-f="sendable">Sendable</span>
-    <span class="pill" data-f="queued">Queued</span>
-    <span class="pill" data-f="approved">Approved</span>
-    <span class="pill" data-f="event">Event</span>
-    <span class="pill" data-f="affinity">Affinity</span>
+  <div class="pillwrap">
+    <div class="pills" id="pills">
+      <span class="pill on" data-f="all">All</span>
+      <span class="pill" data-f="sendable">Sendable</span>
+      <span class="pill" data-f="queued">Queued</span>
+      <span class="pill" data-f="approved">Approved</span>
+      <span class="pill" data-f="event">Event</span>
+      <span class="pill" data-f="affinity">Affinity</span>
+    </div>
+    <div class="pillfade" id="pillfade"></div>
   </div>
   <div class="list" id="list"></div>
 </div>
@@ -238,7 +243,11 @@ async function sendTip(){const u=($('tipurl')||{}).value?.trim();if(!u)return;
   if(MODE==='live'&&sb){const{error}=await sb.rpc('submit_tip',{p_url:u});toast(error?'Tip failed':'Tip saved for resolution');}else toast('Tip queued (demo)');
   showSheet(false);}
 
-$('pills').querySelectorAll('.pill').forEach(p=>p.onclick=()=>{$('pills').querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));p.classList.add('on');filter=p.dataset.f;render();});
+function _pillFade(){const e=$('pills'),f=$('pillfade');if(e&&f)f.style.opacity=(e.scrollLeft+e.clientWidth>=e.scrollWidth-4)?'0':'1';}
+$('pills').querySelectorAll('.pill').forEach(p=>p.onclick=()=>{$('pills').querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));p.classList.add('on');filter=p.dataset.f;
+  const c=$('pills'),cr=c.getBoundingClientRect(),pr=p.getBoundingClientRect();c.scrollLeft=Math.max(0,c.scrollLeft+(pr.left-cr.left)-(c.clientWidth-pr.width)/2);_pillFade();
+  render();});
+$('pills').addEventListener('scroll',_pillFade);setTimeout(_pillFade,300);
 $('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 $('scrim').onclick=()=>showSheet(false);
 $('fab').onclick=openTip;
