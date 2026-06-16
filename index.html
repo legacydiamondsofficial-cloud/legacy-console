@@ -75,7 +75,9 @@
     max-height:94vh;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(28,24,18,.18)}
   .sheet.show{transform:translateY(0)}
   .grab{width:40px;height:5px;border-radius:3px;background:#dcd5c8;margin:10px auto 0;flex:none}
-  .sbody{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 20px 20px}
+  .sheethead{flex:none;padding:2px 20px 6px;background:var(--bg)}
+  .sheethead:empty{display:none}
+  .sbody{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 20px 20px}
   .world-tag{display:inline-block;font-family:Georgia,serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);background:var(--gold-soft);border-radius:7px;padding:5px 11px;margin:8px 0 12px}
   .navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0 0;color:var(--mut);font-size:13px;font-weight:600;letter-spacing:.04em}
   .navbar span:first-child,.navbar span:last-child{font-size:28px;color:var(--gold);min-width:48px;height:40px;display:flex;align-items:center;justify-content:center;line-height:1}
@@ -148,6 +150,7 @@
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet">
   <div class="grab"></div>
+  <div class="sheethead" id="sheethead"></div>
   <div class="sbody" id="sbody"></div>
 </div>
 
@@ -210,8 +213,8 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
   const comps=b.lane==='event'?[['wealth',b.wealth],['occasion',b.occasion],['propensity',b.propensity],['timing',b.timing]]:[['wealth',b.wealth],['affinity',b.affinity],['reachability',b.reachability],['recency',b.recency]];
   const take=ex.personal_take_usd||ex.fec_total_usd,hold=ex.holdings_usd,st=status(l);
   const doors=(cp.channels||[]).map(c=>`<div class="door">${esc(c.value)}<div class="dd">${esc((c.status||'').toUpperCase())} · ${esc(c.note||c.type)}</div></div>`).join('')||'<div class="dd" style="color:var(--mut)">No doors resolved yet.</div>';
+  $('sheethead').innerHTML = idx>=0 ? `<div class="navbar"><span onclick="nav(-1)">${idx>0?'‹':''}</span><span>${idx+1} of ${VIEW.length} · swipe</span><span onclick="nav(1)">${idx<VIEW.length-1?'›':''}</span></div>` : '';
   $('sbody').innerHTML=`
-    ${idx>=0?`<div class="navbar"><span onclick="nav(-1)">${idx>0?'‹':''}</span><span>${idx+1} of ${VIEW.length} · swipe</span><span onclick="nav(1)">${idx<VIEW.length-1?'›':''}</span></div>`:''}
     <div class="world-tag">The Legacy ${world(l)}</div>
     <div class="dname serif">${esc(l.display_name||l.full_name)}</div>
     <div class="dsrc">${esc([l.sector,ex.company].filter(Boolean).join(' · '))} · ${source(l)} · ${esc(l.full_name)}</div>
@@ -241,7 +244,7 @@ async function act(id,s){const l=LEADS.find(x=>x.id===id);if(l)l.status=s;
   else{ov[id]=s;localStorage.setItem('legacy_overrides',JSON.stringify(ov));toast(s==='approved'?'Approved (demo)':'Killed (demo)');}
   showSheet(false);render();}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
-function openTip(){$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
+function openTip(){$('sheethead').innerHTML='';$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
   <div class="dsrc">Paste any public URL — a profile, article, or filing. The engine resolves it.</div>
   <div class="tipwrap" style="padding-left:0;padding-right:0"><input id="tipurl" placeholder="https://…" type="url" autocapitalize="none"/></div>
   <div class="actions" style="padding-left:0;padding-right:0;border:0"><button class="act appr" onclick="sendTip()">Submit</button><button class="act" onclick="showSheet(false)">Cancel</button></div>`;
