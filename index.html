@@ -30,7 +30,17 @@
   .wm b{color:var(--gold);font-weight:400}
   .mode{font:700 9px/1 sans-serif;letter-spacing:.1em;padding:4px 7px;border-radius:6px;border:1px solid var(--line);color:var(--mut)}
   .mode.live{color:var(--send);border-color:#bfe0cd;background:#eef7f1} .mode.demo{color:var(--gold);border-color:var(--gold-soft);background:var(--gold-soft)}
-  .whoami{margin-left:auto;display:none;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
+  .whoami{display:none;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
+  .bell{margin-left:auto;position:relative;display:none;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:17px;line-height:1}
+  .badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--kill);color:#fff;font:700 11px/18px -apple-system,sans-serif;text-align:center;display:none}
+  .badge.show{display:block}
+  .notif{display:flex;gap:12px;padding:14px 2px;border-bottom:1px solid var(--line)}
+  .ni{flex:none;width:36px;height:36px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+  .ni.approved{background:#eef7f1;color:var(--send)} .ni.killed{background:#fbeeec;color:var(--kill)}
+  .nb{flex:1;min-width:0}
+  .nt{font-weight:600;font-size:15px}
+  .nbody{color:var(--s);font-size:13px;margin-top:2px;word-break:break-word}
+  .ntime{color:var(--mut);font-size:12px;margin-top:3px}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Georgia,serif}
   .signout{font-size:12px;color:var(--mut);border:1px solid var(--line);padding:7px 11px;border-radius:9px;background:var(--card)}
   h1{font-family:Georgia,serif;font-weight:400;font-size:27px;margin:14px 0 2px;letter-spacing:-.01em}
@@ -136,6 +146,7 @@
     <div class="htop">
       <div class="wm">Leg<b>a</b>cy</div>
       <span class="mode demo" id="mode">…</span>
+      <button class="bell" id="bell" style="display:none">🔔<span class="badge" id="badge"></span></button>
       <span class="whoami" id="whoami"></span>
       <button class="signout" id="signout" style="display:none">Sign out</button>
     </div>
@@ -256,6 +267,7 @@ window.addEventListener('popstate',()=>{_pushed=false;if(_bypop){_bypop=false;re
 async function act(id,s){const l=LEADS.find(x=>x.id===id);if(l)l.status=s;
   if(MODE==='live'&&sb){const{error}=await sb.rpc('lead_action',{p_lead_id:id,p_status:s});toast(error?'Save failed':(s==='approved'?'Approved':'Killed'));}
   else{ov[id]=s;localStorage.setItem('legacy_overrides',JSON.stringify(ov));toast(s==='approved'?'Approved (demo)':'Killed (demo)');}
+  if(MODE==='live'&&sb)loadNotifs();
   showSheet(false);render();}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
 function openTip(){$('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Tip-line</div></div><div style="width:42px"></div></div>`;$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
@@ -264,7 +276,7 @@ function openTip(){$('sheethead').innerHTML=`<div class="topbar"><button class="
   $('sheetfoot').innerHTML=`<div class="actions"><button class="act appr" onclick="sendTip()">Submit</button><button class="act" onclick="showSheet(false)">Cancel</button></div>`;
   showSheet(true);setTimeout(()=>{try{$('tipurl').focus();}catch(e){}},250);}
 async function sendTip(){const u=($('tipurl')||{}).value?.trim();if(!u)return;
-  if(MODE==='live'&&sb){const{error}=await sb.rpc('submit_tip',{p_url:u});toast(error?'Tip failed':'Tip saved for resolution');}else toast('Tip queued (demo)');
+  if(MODE==='live'&&sb){const{error}=await sb.rpc('submit_tip',{p_url:u});toast(error?'Tip failed':'Tip saved for resolution');if(!error)loadNotifs();}else toast('Tip queued (demo)');
   showSheet(false);}
 
 function _pillFade(){const e=$('pills'),f=$('pillfade');if(e&&f)f.style.opacity=(e.scrollLeft+e.clientWidth>=e.scrollWidth-4)?'0':'1';}
@@ -281,12 +293,27 @@ $('sheet').addEventListener('touchstart',e=>{const t=e.changedTouches[0];_sx=t.c
 $('sheet').addEventListener('touchend',e=>{const t=e.changedTouches[0],dx=t.clientX-_sx,dy=t.clientY-_sy;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4)nav(dx<0?1:-1);},{passive:true});
 document.addEventListener('keydown',e=>{if(!$('sheet').classList.contains('show'))return;if(e.key==='ArrowRight')nav(1);else if(e.key==='ArrowLeft')nav(-1);else if(e.key==='Escape')showSheet(false);});
 $('sbody').addEventListener('scroll',()=>{const tb=$('sheethead').querySelector('.topbar');if(tb)tb.classList.toggle('collapsed',$('sbody').scrollTop>54);},{passive:true});
+
+// ---- notifications ----
+let NOTIFS=[], _notifSub=false;
+const NI={approved:'✓',killed:'✕',tip:'＋',sent:'✈',edited:'✎',system:'★'};
+function rel(ts){const s=(Date.now()-new Date(ts).getTime())/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function renderBadge(){const seen=+(localStorage.getItem('notif_seen')||0);const n=NOTIFS.filter(x=>new Date(x.created_at).getTime()>seen).length;const b=$('badge');if(n>0){b.textContent=n>9?'9+':n;b.classList.add('show');}else b.classList.remove('show');}
+async function loadNotifs(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);NOTIFS=data||[];$('bell').style.display='flex';renderBadge();}
+function subscribeNotifs(){if(_notifSub||!sb)return;_notifSub=true;try{sb.channel('notif').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},p=>{if(!NOTIFS.find(x=>x.id===p.new.id)){NOTIFS.unshift(p.new);renderBadge();toast('🔔 '+p.new.title);}}).subscribe();}catch(e){}}
+function openNotifs(){
+  $('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcenter"><div class="tc-count">Notifications</div></div><div style="width:42px"></div></div>`;
+  $('sheetfoot').innerHTML='';
+  $('sbody').innerHTML=NOTIFS.length?NOTIFS.map(n=>`<div class="notif"><div class="ni ${esc(n.kind)}">${NI[n.kind]||'•'}</div><div class="nb"><div class="nt">${esc(n.title)}</div>${n.body?`<div class="nbody">${esc(n.body)}</div>`:''}<div class="ntime">${rel(n.created_at)}</div></div></div>`).join(''):'<div class="empty">No activity yet.</div>';
+  localStorage.setItem('notif_seen',Date.now());renderBadge();showSheet(true);
+}
+$('bell').onclick=openNotifs;
 $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();};
 
 function nameFrom(u){return (u&&u.user_metadata&&(u.user_metadata.full_name||u.user_metadata.name))||((u&&u.email||'').split('@')[0].split('+')[0].split('.')[0].replace(/^./,c=>c.toUpperCase()))||'You';}
 async function showWho(){try{const{data:{user}}=await sb.auth.getUser();if(user){const nm=nameFrom(user);const w=$('whoami');w.innerHTML='<span class="avatar">'+((nm[0]||'•').toUpperCase())+'</span>'+nm;w.style.display='flex';}}catch(e){}}
-async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();}
-async function loadDemo(){$('whoami').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
+async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();loadNotifs();subscribeNotifs();}
+async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
 $('li-go').onclick=async()=>{const e=$('li-email').value.trim(),p=$('li-pw').value;$('li-err').textContent='';
   if(!sb){$('li-err').textContent='Offline — try again on the live link.';return;}
   $('li-go').textContent='…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});$('li-go').textContent='Enter';
