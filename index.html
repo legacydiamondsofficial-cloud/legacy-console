@@ -77,6 +77,8 @@
   .grab{width:40px;height:5px;border-radius:3px;background:#dcd5c8;margin:10px auto 0;flex:none}
   .sheethead{flex:none;padding:2px 20px 6px;background:var(--bg)}
   .sheethead:empty{display:none}
+  .sheetfoot{flex:none}
+  .sheetfoot:empty{display:none}
   .sbody{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 20px 20px}
   .world-tag{display:inline-block;font-family:Georgia,serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);background:var(--gold-soft);border-radius:7px;padding:5px 11px;margin:8px 0 12px}
   .navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0 0;color:var(--mut);font-size:13px;font-weight:600;letter-spacing:.04em}
@@ -152,6 +154,7 @@
   <div class="grab"></div>
   <div class="sheethead" id="sheethead"></div>
   <div class="sbody" id="sbody"></div>
+  <div class="sheetfoot" id="sheetfoot"></div>
 </div>
 
 <div class="login" id="login">
@@ -227,8 +230,8 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
       <div class="kv"><span>Detected</span>${(l.detected_at||'').slice(0,10)||'—'}</div></div></div>
     <div class="sec"><h4>Suggested angle</h4><div class="kv"><span>Segment</span>${tc(l.segment||'—')}</div><div class="kv"><span>Angle</span>${esc(l.pitch_angle||'—')}</div></div>
     <div class="sec"><h4>Contact doors ${sendable(l)?'· <span style="color:var(--send)">sendable</span>':'· <span style="color:var(--mut)">not yet</span>'}</h4>
-      ${doors}${v.note?`<div class="dd" style="margin-top:8px;color:var(--mut)">${esc(v.note)}</div>`:''}</div>
-    <div class="actions">
+      ${doors}${v.note?`<div class="dd" style="margin-top:8px;color:var(--mut)">${esc(v.note)}</div>`:''}</div>`;
+  $('sheetfoot').innerHTML=`<div class="actions">
       <button class="act appr" onclick="act('${l.id}','approved')">${st==='approved'?'✓ Approved':'Approve'}</button>
       <button class="act" onclick="toast('Feature-invite draft queued')">Draft invite</button>
       <button class="act kill" onclick="act('${l.id}','killed')">Kill</button></div>`;
@@ -246,8 +249,8 @@ async function act(id,s){const l=LEADS.find(x=>x.id===id);if(l)l.status=s;
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
 function openTip(){$('sheethead').innerHTML='';$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
   <div class="dsrc">Paste any public URL — a profile, article, or filing. The engine resolves it.</div>
-  <div class="tipwrap" style="padding-left:0;padding-right:0"><input id="tipurl" placeholder="https://…" type="url" autocapitalize="none"/></div>
-  <div class="actions" style="padding-left:0;padding-right:0;border:0"><button class="act appr" onclick="sendTip()">Submit</button><button class="act" onclick="showSheet(false)">Cancel</button></div>`;
+  <div class="tipwrap" style="padding-left:0;padding-right:0"><input id="tipurl" placeholder="https://…" type="url" autocapitalize="none"/></div>`;
+  $('sheetfoot').innerHTML=`<div class="actions"><button class="act appr" onclick="sendTip()">Submit</button><button class="act" onclick="showSheet(false)">Cancel</button></div>`;
   showSheet(true);setTimeout(()=>{try{$('tipurl').focus();}catch(e){}},250);}
 async function sendTip(){const u=($('tipurl')||{}).value?.trim();if(!u)return;
   if(MODE==='live'&&sb){const{error}=await sb.rpc('submit_tip',{p_url:u});toast(error?'Tip failed':'Tip saved for resolution');}else toast('Tip queued (demo)');
