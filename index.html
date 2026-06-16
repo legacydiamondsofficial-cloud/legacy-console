@@ -205,6 +205,7 @@
       <span class="pill" data-f="sendable">Sendable</span>
       <span class="pill" data-f="queued">Queued</span>
       <span class="pill" data-f="approved">Approved</span>
+      <span class="pill" data-f="partners">Partners</span>
       <span class="pill" data-f="event">Event</span>
       <span class="pill" data-f="affinity">Affinity</span>
     </div>
@@ -253,6 +254,7 @@ const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&g
 function world(l){const w=(l.extraction&&(l.extraction.holdings_usd||l.extraction.fec_total_usd))||0;if(l.strike_score>=72||w>=5e8)return 'Circle';if(l.strike_score>=55)return 'Icon';return 'Era';}
 function source(l){const c=l.category||'',b=l.score_breakdown||{};if(b.source==='fec'||c==='political_donation')return 'FEC';if(c==='institutional_sale')return 'EDGAR institutional';if(c==='insider_sale')return 'SEC EDGAR';if(c==='wealth_signal')return 'Wealth signal';return c?tc(c):'—';}
 function icp(l){const sb=l.score_breakdown||{},sec=(l.sector||'').toLowerCase(),tags=l.tags||[],c=l.category||'';
+  if(tags.includes('b2b2c')||tags.includes('advisor'))return 'Advisor / FO';
   if(tags.includes('principal')||c==='institutional_sale'||/private equity|hedge fund/.test(sec))return 'Family office';
   if(c==='insider_sale'||(sb.lane==='event'&&/exec/.test(sec)))return 'Liquid exec';
   if(tags.includes('fec-donor'))return 'Major donor';
@@ -304,6 +306,8 @@ function render(){ if(tab==='tips') return renderTips(); renderQueue(); }
 function renderQueue(){
   const el=$('list');el.innerHTML='';
   let rows=LEADS.filter(l=>{const st=status(l);
+    const isP=(l.tags||[]).includes('b2b2c');
+    if(filter==='partners'){if(!isP)return false;}else if(isP)return false;
     if(filter==='queued'&&st!=='queued')return false;
     if(filter==='approved'&&st!=='approved')return false;
     if(filter==='sendable'&&!sendable(l))return false;
@@ -313,9 +317,10 @@ function renderQueue(){
     return true;});
   rows=rows.slice().sort(qsort==='recent'?(a,b)=>new Date(b.created_at)-new Date(a.created_at):(a,b)=>b.strike_score-a.strike_score);
   VIEW=rows;
-  $('c-total').textContent=LEADS.filter(l=>status(l)==='queued').length;
-  $('c-send').textContent=LEADS.filter(l=>sendable(l)).length;
-  $('c-appr').textContent=LEADS.filter(l=>status(l)==='approved').length;
+  const indiv=LEADS.filter(l=>!(l.tags||[]).includes('b2b2c'));
+  $('c-total').textContent=indiv.filter(l=>status(l)==='queued').length;
+  $('c-send').textContent=indiv.filter(l=>sendable(l)).length;
+  $('c-appr').textContent=indiv.filter(l=>status(l)==='approved').length;
   if(!rows.length){el.innerHTML='<div class="empty">'+(MODE==='demo'?'Sign in to load your live queue.':'No leads match.')+'</div>';return;}
   if(qsort==='recent'){let cur=null;rows.forEach(l=>{const d=dayLabel(l.created_at);if(d!==cur){cur=d;const h=document.createElement('div');h.className='datehdr';h.textContent=d;el.appendChild(h);}el.appendChild(leadCard(l));});}
   else rows.forEach(l=>el.appendChild(leadCard(l)));
