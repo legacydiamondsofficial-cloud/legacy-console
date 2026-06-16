@@ -112,7 +112,7 @@
   .meta{font-size:13.5px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
   .t{font-size:11px;font-weight:600;letter-spacing:.02em;padding:3px 9px;border-radius:7px;background:#f3f0ea;color:var(--ink2)}
-  .t.send{background:#eef7f1;color:var(--send)} .t.world{background:#f1ecf6;color:#7d5ca3}
+  .t.send{background:#eef7f1;color:var(--send)} .t.world{background:#f1ecf6;color:#7d5ca3} .t.icp{background:#eef3fb;color:#3a6fb0}
   .chev{flex:none;color:#cfc8ba;font-size:20px}
   .empty{text-align:center;color:var(--mut);font-family:Georgia,serif;font-style:italic;padding:70px 24px;font-size:16px}
   /* FAB */
@@ -250,6 +250,14 @@ const tc=s=>(s||'').replace(/_/g,' ');
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function world(l){const w=(l.extraction&&(l.extraction.holdings_usd||l.extraction.fec_total_usd))||0;if(l.strike_score>=72||w>=5e8)return 'Circle';if(l.strike_score>=55)return 'Icon';return 'Era';}
 function source(l){const c=l.category||'',b=l.score_breakdown||{};if(b.source==='fec'||c==='political_donation')return 'FEC';if(c==='institutional_sale')return 'EDGAR institutional';if(c==='insider_sale')return 'SEC EDGAR';if(c==='wealth_signal')return 'Wealth signal';return c?tc(c):'—';}
+function icp(l){const sb=l.score_breakdown||{},sec=(l.sector||'').toLowerCase(),tags=l.tags||[],c=l.category||'';
+  if(tags.includes('principal')||c==='institutional_sale'||/private equity|hedge fund/.test(sec))return 'Family office';
+  if(c==='insider_sale'||(sb.lane==='event'&&/exec/.test(sec)))return 'Liquid exec';
+  if(tags.includes('fec-donor'))return 'Major donor';
+  if(sb.affinity_tier==='high'||/fashion|beauty|jewel|art|hospitality|real estate|realty|wine|entertain|sport/.test(sec))return 'Collector';
+  if(sb.lane==='event')return 'Liquid event';
+  if(sb.lane==='affinity')return 'Est. UHNW';
+  return 'Signal';}
 function status(l){return MODE==='demo'?(ov[l.id]||l.status):l.status;}
 const RICON={email:'✉',phone:'☎',x:'X',linkedin:'in',instagram:'IG',website:'🌐',note:'·'};
 function hrefFor(k,v){switch(k){case 'email':return 'mailto:'+v;case 'phone':return 'tel:'+v.replace(/[^\d+]/g,'');case 'x':return 'https://x.com/'+v.replace(/^@/,'');case 'instagram':return v.startsWith('http')?v:'https://instagram.com/'+v.replace(/^@/,'');case 'linkedin':return v.startsWith('http')?v:'https://www.linkedin.com/in/'+v.replace(/^@/,'');case 'website':return v.startsWith('http')?v:'https://'+v;default:return null;}}
@@ -281,7 +289,7 @@ function leadCard(l){const st=status(l),ex=l.extraction||{};
   c.innerHTML=`<div class="strike"><b>${l.strike_score}</b><small>STRIKE</small></div>
     <div class="who"><div class="nm"><span class="dot ${st}"></span>${esc(l.display_name||l.full_name)}</div>
     <div class="meta">${esc([l.sector,company,[l.city,l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
-    <div class="tags"><span class="t world">${world(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}<span class="t">${source(l)}</span></div>
+    <div class="tags"><span class="t world">${world(l)}</span><span class="t icp">${icp(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}</div>
     <div class="cardtime">${dayLabel(l.created_at)} · ${hhmm(l.created_at)}</div></div>
     <div class="chev">›</div>`;
   return c;}
@@ -329,6 +337,7 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
     <div class="world-tag">The Legacy ${world(l)}</div>
     <div class="dname serif">${esc(l.display_name||l.full_name)}</div>
     <div class="dsrc">${esc([l.sector,ex.company].filter(Boolean).join(' · '))} · ${source(l)} · ${esc(l.full_name)}</div>
+    <div style="margin:0 0 12px"><span class="t icp">${icp(l)}</span></div>
     <div class="sec"><h4>Strike ${l.strike_score} — ${b.lane||''} lane</h4>
       ${comps.map(([k,val])=>`<div class="bl"><span class="l">${k}</span><span class="tr"><span class="fl" style="width:${Math.min(100,(val||0)/40*100)}%"></span></span><span class="v">${val??'–'}</span></div>`).join('')}</div>
     <div class="sec"><h4>The trigger</h4><div class="quote">${esc(ex.rationale||'—')}</div>
