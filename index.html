@@ -75,6 +75,8 @@
   .grab{width:40px;height:5px;border-radius:3px;background:#dcd5c8;margin:10px auto 0;flex:none}
   .sbody{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 20px 20px}
   .world-tag{display:inline-block;font-family:Georgia,serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);background:var(--gold-soft);border-radius:7px;padding:5px 11px;margin:8px 0 12px}
+  .navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0 0;color:var(--mut);font-size:13px;font-weight:600;letter-spacing:.04em}
+  .navbar span:first-child,.navbar span:last-child{font-size:28px;color:var(--gold);min-width:48px;height:40px;display:flex;align-items:center;justify-content:center;line-height:1}
   .dname{font-family:Georgia,serif;font-weight:400;font-size:30px;margin:0 0 4px;letter-spacing:-.01em}
   .dsrc{font-size:13px;color:var(--mut);margin-bottom:8px}
   .sec{border-top:1px solid var(--line);padding:16px 0}
@@ -163,7 +165,7 @@
 const SB_URL='https://datmpoiomjaegwfmssja.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhdG1wb2lvbWphZWd3Zm1zc2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NzUwMzksImV4cCI6MjA5NjU1MTAzOX0.QRYfiEHePtAiM9iocdJUp3fpE7XSdx5KiTe4X68EpJE';
 let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_ANON); }catch(e){}
-let LEADS=[], filter='all', q='', selId=null, MODE='demo';
+let LEADS=[], VIEW=[], filter='all', q='', selId=null, MODE='demo';
 const ov=JSON.parse(localStorage.getItem('legacy_overrides')||'{}');
 const $=id=>document.getElementById(id);
 const fmtUSD=n=>n==null?null:'$'+(Math.abs(n)>=1e9?(n/1e9).toFixed(1)+'B':Math.abs(n)>=1e6?(n/1e6).toFixed(1)+'M':(n/1e3).toFixed(0)+'k');
@@ -185,6 +187,7 @@ function render(){
     if(filter==='affinity'&&(l.score_breakdown||{}).lane!=='affinity')return false;
     if(q&&!((l.display_name+' '+((l.extraction||{}).company||'')+' '+l.sector).toLowerCase().includes(q)))return false;
     return true;});
+  VIEW=rows;
   $('c-total').textContent=LEADS.filter(l=>status(l)==='queued').length;
   $('c-send').textContent=LEADS.filter(l=>sendable(l)).length;
   $('c-appr').textContent=LEADS.filter(l=>status(l)==='approved').length;
@@ -199,12 +202,13 @@ function render(){
       <div class="chev">›</div>`;
     el.appendChild(c);});
 }
-function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;
+function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const idx=VIEW.findIndex(x=>x.id===id);
   const b=l.score_breakdown||{},ex=l.extraction||{},cp=l.contact_paths||{},v=cp.verification||{};
   const comps=b.lane==='event'?[['wealth',b.wealth],['occasion',b.occasion],['propensity',b.propensity],['timing',b.timing]]:[['wealth',b.wealth],['affinity',b.affinity],['reachability',b.reachability],['recency',b.recency]];
   const take=ex.personal_take_usd||ex.fec_total_usd,hold=ex.holdings_usd,st=status(l);
   const doors=(cp.channels||[]).map(c=>`<div class="door">${esc(c.value)}<div class="dd">${esc((c.status||'').toUpperCase())} · ${esc(c.note||c.type)}</div></div>`).join('')||'<div class="dd" style="color:var(--mut)">No doors resolved yet.</div>';
   $('sbody').innerHTML=`
+    ${idx>=0?`<div class="navbar"><span onclick="nav(-1)">${idx>0?'‹':''}</span><span>${idx+1} of ${VIEW.length} · swipe</span><span onclick="nav(1)">${idx<VIEW.length-1?'›':''}</span></div>`:''}
     <div class="world-tag">The Legacy ${world(l)}</div>
     <div class="dname serif">${esc(l.display_name||l.full_name)}</div>
     <div class="dsrc">${esc([l.sector,ex.company].filter(Boolean).join(' · '))} · ${source(l)} · ${esc(l.full_name)}</div>
@@ -251,6 +255,11 @@ $('pills').addEventListener('scroll',_pillFade);setTimeout(_pillFade,300);
 $('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 $('scrim').onclick=()=>showSheet(false);
 $('fab').onclick=openTip;
+function nav(d){if(!$('sheet').classList.contains('show'))return;const i=VIEW.findIndex(x=>x.id===selId);if(i<0)return;const n=i+d;if(n<0||n>=VIEW.length)return;open(VIEW[n].id);$('sbody').scrollTop=0;}
+let _sx=0,_sy=0;
+$('sheet').addEventListener('touchstart',e=>{const t=e.changedTouches[0];_sx=t.clientX;_sy=t.clientY;},{passive:true});
+$('sheet').addEventListener('touchend',e=>{const t=e.changedTouches[0],dx=t.clientX-_sx,dy=t.clientY-_sy;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4)nav(dx<0?1:-1);},{passive:true});
+document.addEventListener('keydown',e=>{if(!$('sheet').classList.contains('show'))return;if(e.key==='ArrowRight')nav(1);else if(e.key==='ArrowLeft')nav(-1);else if(e.key==='Escape')showSheet(false);});
 $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();};
 
 async function loadLive(){const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();}
