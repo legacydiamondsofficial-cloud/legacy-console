@@ -288,6 +288,7 @@ function handleNotif(id){const n=NOTIFS.find(x=>x.id===id);if(!n)return;
   if(n.kind==='tip'){showSheet(false);switchTab('tips');return;}
   showSheet(false);}
 function sendable(l){return ((l.contact_paths||{}).verification||{}).sendable===true;}
+function uscore(l){return l.unified_score!=null?l.unified_score:l.strike_score;} // unified lead score; falls back to strike (offline demo)
 function setMode(m){MODE=m;const e=$('mode');e.textContent=m==='live'?'● LIVE':'DEMO';e.className='mode '+m;$('signout').style.display=m==='live'?'inline-block':'none';}
 
 function dayLabel(ts){if(!ts)return 'Earlier';const d=new Date(ts),n=new Date();const a=new Date(d.getFullYear(),d.getMonth(),d.getDate()),b=new Date(n.getFullYear(),n.getMonth(),n.getDate());const diff=Math.round((b-a)/86400000);if(diff<=0)return 'Today';if(diff===1)return 'Yesterday';return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});}
@@ -295,7 +296,7 @@ function hhmm(ts){return ts?new Date(ts).toLocaleTimeString(undefined,{hour:'num
 function leadCard(l){const st=status(l),ex=l.extraction||{};
   const company=ex.company||(l.tags&&l.tags.includes('fec-donor')?(ex.employer||''):'');
   const c=document.createElement('div');c.className='card';c.onclick=()=>open(l.id);
-  c.innerHTML=`<div class="strike"><b>${l.strike_score}</b><small>STRIKE</small></div>
+  c.innerHTML=`<div class="strike"><b>${uscore(l)}</b><small>SCORE</small></div>
     <div class="who"><div class="nm"><span class="dot ${st}"></span>${esc(l.display_name||l.full_name)}</div>
     <div class="meta">${esc([l.sector,company,[l.city,l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
     <div class="tags"><span class="t world">${world(l)}</span><span class="t icp">${icp(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}</div>
@@ -315,7 +316,7 @@ function renderQueue(){
     if(filter==='affinity'&&(l.score_breakdown||{}).lane!=='affinity')return false;
     if(q&&!((l.display_name+' '+((l.extraction||{}).company||'')+' '+l.sector).toLowerCase().includes(q)))return false;
     return true;});
-  rows=rows.slice().sort(qsort==='recent'?(a,b)=>new Date(b.created_at)-new Date(a.created_at):(a,b)=>b.strike_score-a.strike_score);
+  rows=rows.slice().sort(qsort==='recent'?(a,b)=>new Date(b.created_at)-new Date(a.created_at):(a,b)=>uscore(b)-uscore(a));
   VIEW=rows;
   const indiv=LEADS.filter(l=>!(l.tags||[]).includes('b2b2c'));
   $('c-total').textContent=indiv.filter(l=>status(l)==='queued').length;
@@ -350,7 +351,9 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
     <div class="dname serif">${esc(l.display_name||l.full_name)}</div>
     <div class="dsrc">${esc([l.sector,ex.company].filter(Boolean).join(' · '))} · ${source(l)} · ${esc(l.full_name)}</div>
     <div style="margin:0 0 12px"><span class="t icp">${icp(l)}</span></div>
-    <div class="sec"><h4>Strike ${l.strike_score} — ${b.lane||''} lane</h4>
+    <div class="sec"><h4>Lead score ${uscore(l)}${l.unified_score!=null?' <small style="color:var(--mut);font-weight:500">/95 · warm-and-gettable first</small>':''}</h4>
+      ${l.unified_score!=null?`<div class="kv"><span>Composite</span>reachability · wealth · ICP-fit · timing${uscore(l)<95?' · intent 0':''}</div><div style="height:10px"></div>`:''}
+      <div style="color:var(--mut);font-size:12px;margin:2px 0 6px">${b.lane||''} lane · strike ${l.strike_score}</div>
       ${comps.map(([k,val])=>`<div class="bl"><span class="l">${k}</span><span class="tr"><span class="fl" style="width:${Math.min(100,(val||0)/40*100)}%"></span></span><span class="v">${val??'–'}</span></div>`).join('')}</div>
     <div class="sec"><h4>The trigger</h4><div class="quote">${esc(ex.rationale||'—')}</div>
       <div style="margin-top:12px"><div class="kv"><span>Event</span>${tc(l.event_type||l.category||'—')}</div>
