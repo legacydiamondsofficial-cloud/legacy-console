@@ -30,7 +30,9 @@
   .wm b{color:var(--gold);font-weight:400}
   .mode{font:700 9px/1 sans-serif;letter-spacing:.1em;padding:4px 7px;border-radius:6px;border:1px solid var(--line);color:var(--mut)}
   .mode.live{color:var(--send);border-color:#bfe0cd;background:#eef7f1} .mode.demo{color:var(--gold);border-color:var(--gold-soft);background:var(--gold-soft)}
-  .signout{margin-left:auto;font-size:13px;color:var(--mut);border:1px solid var(--line);padding:7px 12px;border-radius:9px;background:var(--card)}
+  .whoami{margin-left:auto;display:none;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Georgia,serif}
+  .signout{font-size:12px;color:var(--mut);border:1px solid var(--line);padding:7px 11px;border-radius:9px;background:var(--card)}
   h1{font-family:Georgia,serif;font-weight:400;font-size:27px;margin:14px 0 2px;letter-spacing:-.01em}
   .count{font-size:13px;color:var(--mut)}
   .count b{color:var(--ink)} .count .s{color:var(--send)}
@@ -119,6 +121,7 @@
     <div class="htop">
       <div class="wm">Leg<b>a</b>cy</div>
       <span class="mode demo" id="mode">…</span>
+      <span class="whoami" id="whoami"></span>
       <button class="signout" id="signout" style="display:none">Sign out</button>
     </div>
     <h1 class="serif">The Morning Queue</h1>
@@ -262,8 +265,10 @@ $('sheet').addEventListener('touchend',e=>{const t=e.changedTouches[0],dx=t.clie
 document.addEventListener('keydown',e=>{if(!$('sheet').classList.contains('show'))return;if(e.key==='ArrowRight')nav(1);else if(e.key==='ArrowLeft')nav(-1);else if(e.key==='Escape')showSheet(false);});
 $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();};
 
-async function loadLive(){const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();}
-async function loadDemo(){const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
+function nameFrom(u){return (u&&u.user_metadata&&(u.user_metadata.full_name||u.user_metadata.name))||((u&&u.email||'').split('@')[0].split('+')[0].split('.')[0].replace(/^./,c=>c.toUpperCase()))||'You';}
+async function showWho(){try{const{data:{user}}=await sb.auth.getUser();if(user){const nm=nameFrom(user);const w=$('whoami');w.innerHTML='<span class="avatar">'+((nm[0]||'•').toUpperCase())+'</span>'+nm;w.style.display='flex';}}catch(e){}}
+async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();}
+async function loadDemo(){$('whoami').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
 $('li-go').onclick=async()=>{const e=$('li-email').value.trim(),p=$('li-pw').value;$('li-err').textContent='';
   if(!sb){$('li-err').textContent='Offline — try again on the live link.';return;}
   $('li-go').textContent='…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});$('li-go').textContent='Enter';
