@@ -72,7 +72,8 @@
   .scrim.show{opacity:1;pointer-events:auto}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:640px;margin:0 auto;background:var(--bg);
     border-radius:22px 22px 0 0;transform:translateY(100%);transition:transform .26s cubic-bezier(.22,.7,.3,1);
-    max-height:94vh;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(28,24,18,.18)}
+    height:92vh;height:92dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 40px rgba(28,24,18,.18)}
+  @media(max-width:640px){.sheet{height:100vh;height:100dvh;border-radius:0}}
   .sheet.show{transform:translateY(0)}
   .grab{width:40px;height:5px;border-radius:3px;background:#dcd5c8;margin:10px auto 0;flex:none}
   .sheethead{flex:none;padding:2px 20px 6px;background:var(--bg)}
@@ -81,8 +82,12 @@
   .sheetfoot:empty{display:none}
   .sbody{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 20px 20px}
   .world-tag{display:inline-block;font-family:Georgia,serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);background:var(--gold-soft);border-radius:7px;padding:5px 11px;margin:8px 0 12px}
-  .navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0 0;color:var(--mut);font-size:13px;font-weight:600;letter-spacing:.04em}
-  .navbar span:first-child,.navbar span:last-child{font-size:28px;color:var(--gold);min-width:48px;height:40px;display:flex;align-items:center;justify-content:center;line-height:1}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0}
+  .tclose{width:42px;height:42px;border:0;background:transparent;color:var(--ink2);font-size:21px;line-height:1;border-radius:10px}
+  .tcount{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--mut);letter-spacing:.03em}
+  .tnav{display:flex;gap:0}
+  .tnav span{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:27px;color:var(--gold);line-height:1}
+  .tnav span.off{color:#e4ddcf}
   .dname{font-family:Georgia,serif;font-weight:400;font-size:30px;margin:0 0 4px;letter-spacing:-.01em}
   .dsrc{font-size:13px;color:var(--mut);margin-bottom:8px}
   .sec{border-top:1px solid var(--line);padding:16px 0}
@@ -216,7 +221,7 @@ function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const i
   const comps=b.lane==='event'?[['wealth',b.wealth],['occasion',b.occasion],['propensity',b.propensity],['timing',b.timing]]:[['wealth',b.wealth],['affinity',b.affinity],['reachability',b.reachability],['recency',b.recency]];
   const take=ex.personal_take_usd||ex.fec_total_usd,hold=ex.holdings_usd,st=status(l);
   const doors=(cp.channels||[]).map(c=>`<div class="door">${esc(c.value)}<div class="dd">${esc((c.status||'').toUpperCase())} · ${esc(c.note||c.type)}</div></div>`).join('')||'<div class="dd" style="color:var(--mut)">No doors resolved yet.</div>';
-  $('sheethead').innerHTML = idx>=0 ? `<div class="navbar"><span onclick="nav(-1)">${idx>0?'‹':''}</span><span>${idx+1} of ${VIEW.length} · swipe</span><span onclick="nav(1)">${idx<VIEW.length-1?'›':''}</span></div>` : '';
+  $('sheethead').innerHTML = `<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcount">${idx>=0?(idx+1)+' of '+VIEW.length+' · swipe':''}</div><div class="tnav"><span class="${idx>0?'':'off'}" onclick="nav(-1)">‹</span><span class="${idx<VIEW.length-1?'':'off'}" onclick="nav(1)">›</span></div></div>`;
   $('sbody').innerHTML=`
     <div class="world-tag">The Legacy ${world(l)}</div>
     <div class="dname serif">${esc(l.display_name||l.full_name)}</div>
@@ -247,7 +252,7 @@ async function act(id,s){const l=LEADS.find(x=>x.id===id);if(l)l.status=s;
   else{ov[id]=s;localStorage.setItem('legacy_overrides',JSON.stringify(ov));toast(s==='approved'?'Approved (demo)':'Killed (demo)');}
   showSheet(false);render();}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
-function openTip(){$('sheethead').innerHTML='';$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
+function openTip(){$('sheethead').innerHTML=`<div class="topbar"><button class="tclose" onclick="showSheet(false)">✕</button><div class="tcount">Tip-line</div><div style="width:42px"></div></div>`;$('sbody').innerHTML=`<div class="world-tag">Tip-line</div><div class="dname serif" style="font-size:24px">Add a lead</div>
   <div class="dsrc">Paste any public URL — a profile, article, or filing. The engine resolves it.</div>
   <div class="tipwrap" style="padding-left:0;padding-right:0"><input id="tipurl" placeholder="https://…" type="url" autocapitalize="none"/></div>`;
   $('sheetfoot').innerHTML=`<div class="actions"><button class="act appr" onclick="sendTip()">Submit</button><button class="act" onclick="showSheet(false)">Cancel</button></div>`;
