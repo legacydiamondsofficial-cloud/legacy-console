@@ -97,6 +97,8 @@
   .pillfade{position:absolute;top:0;right:0;width:42px;height:100%;pointer-events:none;background:linear-gradient(90deg,rgba(246,243,238,0),var(--bg) 72%);transition:opacity .2s}
   .pill{flex:none;background:var(--card);border:1px solid var(--line);color:var(--ink2);padding:9px 16px;border-radius:22px;font-size:14px;font-weight:500}
   .pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .geobar{display:flex;gap:8px;padding:6px 16px 0}
+  .geosel{flex:none;background:var(--card);border:1px solid var(--line);color:var(--ink2);padding:8px 30px 8px 14px;border-radius:18px;font-size:13px;font-weight:500;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23998' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
   /* list */
   .list{padding:8px 16px calc(120px + var(--safe-b))}
   .card{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;
@@ -211,6 +213,10 @@
     </div>
     <div class="pillfade" id="pillfade"></div>
   </div>
+  <div class="geobar" id="geobar">
+    <select class="geosel" id="geoRegion"><option value="all">All regions</option></select>
+    <select class="geosel" id="geoState" style="display:none"><option value="all">All states</option></select>
+  </div>
   <div class="qsort" id="qsort"><span class="qseg on" data-s="top">Top</span><span class="qseg" data-s="recent">Recent</span></div>
   <div class="list" id="list"></div>
   <nav class="tabbar">
@@ -245,7 +251,7 @@
 const SB_URL='https://datmpoiomjaegwfmssja.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhdG1wb2lvbWphZWd3Zm1zc2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NzUwMzksImV4cCI6MjA5NjU1MTAzOX0.QRYfiEHePtAiM9iocdJUp3fpE7XSdx5KiTe4X68EpJE';
 let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_ANON); }catch(e){}
-let LEADS=[], VIEW=[], filter='all', q='', selId=null, MODE='demo', tab='queue', qsort='top', TIPS=[];
+let LEADS=[], VIEW=[], filter='all', q='', selId=null, MODE='demo', tab='queue', qsort='top', TIPS=[], geoRegion='all', geoState='all';
 const ov=JSON.parse(localStorage.getItem('legacy_overrides')||'{}');
 const $=id=>document.getElementById(id);
 const fmtUSD=n=>n==null?null:'$'+(Math.abs(n)>=1e9?(n/1e9).toFixed(1)+'B':Math.abs(n)>=1e6?(n/1e6).toFixed(1)+'M':(n/1e3).toFixed(0)+'k');
@@ -300,7 +306,7 @@ function leadCard(l){const st=status(l),ex=l.extraction||{};
   const c=document.createElement('div');c.className='card';c.onclick=()=>open(l.id);
   c.innerHTML=`<div class="strike"><b>${uscore(l)}</b><small>SCORE</small></div>
     <div class="who"><div class="nm"><span class="dot ${st}"></span>${esc(l.display_name||l.full_name)}</div>
-    <div class="meta">${esc([l.sector,company,[l.city,l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
+    <div class="meta">${esc([l.sector,company,[l.city,l.state_province||l.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
     <div class="tags"><span class="t world">${world(l)}</span><span class="t icp">${icp(l)}</span>${sendable(l)?'<span class="t send">● Sendable</span>':''}</div>
     <div class="cardtime">${dayLabel(l.created_at)} · ${hhmm(l.created_at)}</div></div>
     <div class="chev">›</div>`;
@@ -316,6 +322,8 @@ function renderQueue(){
     if(filter==='sendable'&&!sendable(l))return false;
     if(filter==='event'&&(l.score_breakdown||{}).lane!=='event')return false;
     if(filter==='affinity'&&(l.score_breakdown||{}).lane!=='affinity')return false;
+    if(geoRegion!=='all'&&(l.region_macro||'')!==geoRegion)return false;
+    if(geoState!=='all'&&(l.state_province||'')!==geoState)return false;
     if(q&&!((l.display_name+' '+((l.extraction||{}).company||'')+' '+l.sector).toLowerCase().includes(q)))return false;
     return true;});
   rows=rows.slice().sort(qsort==='recent'?(a,b)=>new Date(b.created_at)-new Date(a.created_at):(a,b)=>uscore(b)-uscore(a));
@@ -340,7 +348,7 @@ async function renderTips(){
   el.insertAdjacentHTML('beforeend',html);
 }
 function switchTab(t){tab=t;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===t));
-  const isQ=(t==='queue');['tools','pillwrap','qsort'].forEach(id=>{const e=$(id);if(e)e.style.display=isQ?'':'none';});
+  const isQ=(t==='queue');['tools','pillwrap','geobar','qsort'].forEach(id=>{const e=$(id);if(e)e.style.display=isQ?'':'none';});
   window.scrollTo(0,0);render();}
 function open(id){selId=id;const l=LEADS.find(x=>x.id===id);if(!l)return;const idx=VIEW.findIndex(x=>x.id===id);
   const b=l.score_breakdown||{},ex=l.extraction||{},cp=l.contact_paths||{},v=cp.verification||{};
@@ -404,6 +412,25 @@ $('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 $('scrim').onclick=()=>showSheet(false);
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 $('qsort').querySelectorAll('.qseg').forEach(s=>s.onclick=()=>{$('qsort').querySelectorAll('.qseg').forEach(x=>x.classList.remove('on'));s.classList.add('on');qsort=s.dataset.s;render();});
+const GEO_ORDER=['USA','UK','Europe','Japan','Australia','APAC','MEA','Other'];
+function nIn(fn){return LEADS.filter(l=>!(l.tags||[]).includes('b2b2c')&&fn(l)).length;}
+function populateGeo(){
+  const regions=[...new Set(LEADS.map(l=>l.region_macro).filter(Boolean))].sort((a,b)=>GEO_ORDER.indexOf(a)-GEO_ORDER.indexOf(b));
+  $('geobar').style.display=regions.length?'':'none';
+  if(!regions.length)return;
+  $('geoRegion').innerHTML='<option value="all">All regions</option>'+regions.map(r=>`<option value="${esc(r)}">${esc(r)} (${nIn(l=>l.region_macro===r)})</option>`).join('');
+  if(!['all',...regions].includes(geoRegion))geoRegion='all';
+  $('geoRegion').value=geoRegion;populateStates();}
+function populateStates(){
+  const ss=$('geoState');
+  const states=geoRegion==='all'?[]:[...new Set(LEADS.filter(l=>l.region_macro===geoRegion).map(l=>l.state_province).filter(Boolean))].sort();
+  if(!states.length){ss.style.display='none';geoState='all';return;}
+  ss.style.display='';
+  ss.innerHTML='<option value="all">All states</option>'+states.map(s=>`<option value="${esc(s)}">${esc(s)} (${nIn(l=>l.region_macro===geoRegion&&l.state_province===s)})</option>`).join('');
+  if(!['all',...states].includes(geoState))geoState='all';
+  ss.value=geoState;}
+$('geoRegion').onchange=e=>{geoRegion=e.target.value;geoState='all';populateStates();render();};
+$('geoState').onchange=e=>{geoState=e.target.value;render();};
 // ---- live harvest timer ----
 let _hv=null;
 async function loadHarvest(){if(MODE!=='live'||!sb)return;const{data}=await sb.from('harvest_runs').select('*').order('started_at',{ascending:false}).limit(1);_hv=(data&&data[0])||null;updateBanner();}
@@ -460,8 +487,8 @@ $('signout').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();}
 
 function nameFrom(u){return (u&&u.user_metadata&&(u.user_metadata.full_name||u.user_metadata.name))||((u&&u.email||'').split('@')[0].split('+')[0].split('.')[0].replace(/^./,c=>c.toUpperCase()))||'You';}
 async function showWho(){try{const{data:{user}}=await sb.auth.getUser();if(user){const nm=nameFrom(user);const w=$('whoami');w.innerHTML='<span class="avatar">'+((nm[0]||'•').toUpperCase())+'</span>'+nm;w.style.display='flex';}}catch(e){}}
-async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');render();loadNotifs();subscribeNotifs();loadHarvest();}
-async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';$('gear').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');render();}
+async function loadLive(){await showWho();const{data,error}=await sb.from('morning_queue').select('*');if(error){toast('Live load failed');return loadDemo();}LEADS=data||[];setMode('live');populateGeo();render();loadNotifs();subscribeNotifs();loadHarvest();}
+async function loadDemo(){$('whoami').style.display='none';$('bell').style.display='none';$('gear').style.display='none';const d=await fetch('leads.json').then(r=>r.json()).catch(()=>[]);LEADS=d;setMode('demo');populateGeo();render();}
 $('li-go').onclick=async()=>{const e=$('li-email').value.trim(),p=$('li-pw').value;$('li-err').textContent='';
   if(!sb){$('li-err').textContent='Offline — try again on the live link.';return;}
   $('li-go').textContent='…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});$('li-go').textContent='Enter';
